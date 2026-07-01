@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LibrePelota limpio
 // @namespace    local.feder.librepelota
-// @version      0.1.0
+// @version      0.1.1
 // @description  Bloquea popups del reproductor y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -182,6 +182,61 @@
     }, true);
   }
 
+  function getPlayerTargets() {
+    const video = document.querySelector('video');
+    return {
+      video,
+      player: document.getElementById('player') || video
+    };
+  }
+
+  function requestPlayerFullscreen(player) {
+    try {
+      if (!document.fullscreenElement && player.requestFullscreen) {
+        return player.requestFullscreen();
+      }
+      if (player.webkitRequestFullscreen) {
+        return player.webkitRequestFullscreen();
+      }
+    } catch (_) {}
+    return undefined;
+  }
+
+  function startPlayer(button, userActivated) {
+    const { video, player } = getPlayerTargets();
+    if (!video || !player) {
+      if (button) {
+        button.textContent = 'Esperando video...';
+        setTimeout(() => { button.textContent = 'Reproducir limpio'; }, 1500);
+      }
+      return false;
+    }
+
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
+
+    if (button) button.textContent = 'Abriendo...';
+
+    const playResult = Promise.resolve(video.play()).catch(error => {
+      if (userActivated) throw error;
+      video.muted = true;
+      video.setAttribute('muted', '');
+      return video.play();
+    });
+
+    const fullscreenResult = requestPlayerFullscreen(player);
+    Promise.resolve(fullscreenResult).catch(() => {});
+
+    playResult
+      .catch(() => {})
+      .finally(() => {
+        if (!button) return;
+        button.textContent = video.paused ? 'Reproducir limpio' : 'Reproduciendo';
+      });
+
+    return true;
+  }
+
   function installCleanPlayerButton() {
     if (!PLAYER_HOST.test(location.hostname)) return;
 
@@ -191,7 +246,7 @@
       const button = document.createElement('button');
       button.id = 'lp-clean-play';
       button.type = 'button';
-      button.textContent = '▶ Reproducir limpio';
+      button.textContent = 'Reproducir limpio';
       button.setAttribute('aria-label', 'Reproducir y abrir en pantalla completa');
       button.style.cssText = [
         'position:fixed',
@@ -212,35 +267,7 @@
       button.addEventListener('click', event => {
         event.preventDefault();
         event.stopImmediatePropagation();
-
-        const video = document.querySelector('video');
-        const player = document.getElementById('player') || video;
-        if (!video || !player) {
-          button.textContent = 'Esperando video…';
-          setTimeout(() => { button.textContent = '▶ Reproducir limpio'; }, 1500);
-          return;
-        }
-
-        button.textContent = 'Abriendo…';
-
-        // Ambas llamadas se hacen directamente dentro del toque para conservar
-        // la activación exigida por Chrome y Firefox.
-        const playResult = video.play();
-        let fullscreenResult;
-        try {
-          if (!document.fullscreenElement && player.requestFullscreen) {
-            fullscreenResult = player.requestFullscreen();
-          } else if (player.webkitRequestFullscreen) {
-            fullscreenResult = player.webkitRequestFullscreen();
-          }
-        } catch (_) {}
-
-        Promise.resolve(playResult).catch(() => {});
-        Promise.resolve(fullscreenResult).catch(() => {});
-
-        setTimeout(() => {
-          button.textContent = video.paused ? '▶ Reproducir limpio' : '✓ Reproduciendo';
-        }, 500);
+        startPlayer(button, true);
       }, true);
 
       document.body.appendChild(button);
@@ -251,10 +278,44 @@
       });
     };
 
+    const tryAutostart = () => {
+      if (!document.body) return;
+
+      const run = () => startPlayer(document.getElementById('lp-clean-play'), false);
+      if (run()) return;
+
+      const observer = new MutationObserver(() => {
+        if (run()) observer.disconnect();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    };
+
+    const installFirstGestureStart = () => {
+      const onFirstGesture = event => {
+        if (!startPlayer(document.getElementById('lp-clean-play'), true)) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        document.removeEventListener('pointerdown', onFirstGesture, true);
+        document.removeEventListener('touchstart', onFirstGesture, true);
+        document.removeEventListener('click', onFirstGesture, true);
+      };
+
+      document.addEventListener('pointerdown', onFirstGesture, true);
+      document.addEventListener('touchstart', onFirstGesture, true);
+      document.addEventListener('click', onFirstGesture, true);
+    };
+
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', addButton, { once: true });
+      document.addEventListener('DOMContentLoaded', () => {
+        addButton();
+        tryAutostart();
+        installFirstGestureStart();
+      }, { once: true });
     } else {
       addButton();
+      tryAutostart();
+      installFirstGestureStart();
     }
   }
 
