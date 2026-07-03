@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LibrePelota limpio
 // @namespace    local.feder.librepelota
-// @version      0.1.1
+// @version      0.1.2
 // @description  Bloquea popups del reproductor y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -12,6 +12,8 @@
 // @match        https://*.librepelota.su/*
 // @match        https://latamvidzfy.org/*
 // @match        https://*.latamvidzfy.org/*
+// @match        https://esvidzypro.sbs/*
+// @match        https://*.sbs/*
 // @run-at       document-start
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -20,8 +22,9 @@
   'use strict';
 
   const pageWindow = typeof unsafeWindow === 'object' ? unsafeWindow : window;
-  const PLAYER_HOST = /(^|\.)latamvidzfy\.org$/i;
-  const TRUSTED_FRAME_HOST = /(^|\.)(latamvidzfy\.org|librepelota\.su)$/i;
+  const LIBREPELOTA_HOST = /(^|\.)librepelota\.su$/i;
+  const PLAYER_HOST = /(^|\.)(latamvidzfy\.org|[a-z0-9-]+\.sbs)$/i;
+  const TRUSTED_FRAME_HOST = /(^|\.)(latamvidzfy\.org|librepelota\.su|[a-z0-9-]+\.sbs)$/i;
   const AD_SCRIPT_HOST = /(^|\.)acscdn\.com$/i;
   const INTERACTION_EVENTS = new Set([
     'auxclick', 'click', 'dblclick', 'mousedown', 'mouseup',
@@ -103,6 +106,10 @@
     } catch (_) {
       return '';
     }
+  }
+
+  function isSupportedPage() {
+    return LIBREPELOTA_HOST.test(location.hostname) || PLAYER_HOST.test(location.hostname);
   }
 
   function patchIframe(iframe) {
@@ -318,6 +325,8 @@
       installFirstGestureStart();
     }
   }
+
+  if (!isSupportedPage()) return;
 
   installEarlyGuards();
   installDomCleaner();
