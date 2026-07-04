@@ -1,6 +1,6 @@
-# LibrePelota limpio
+# Streams limpios
 
-Userscript personal para bloquear popups del reproductor, evitar clics publicitarios y facilitar la reproducción en pantalla completa.
+Userscript personal para bloquear popups de reproductores deportivos, evitar clics publicitarios y facilitar la reproducción en pantalla completa.
 
 ## Instalación rápida
 
@@ -11,7 +11,7 @@ Primero instalar Tampermonkey:
 
 Después abrir este enlace y presionar **Instalar**:
 
-### [Instalar LibrePelota limpio](https://raw.githubusercontent.com/fmalisani1/librepelota-limpio/main/librepelota-limpio.user.js)
+### [Instalar Streams limpios](https://raw.githubusercontent.com/fmalisani1/librepelota-limpio/main/librepelota-limpio.user.js)
 
 Las instrucciones detalladas para Windows y Android están en [INSTALACION.md](INSTALACION.md).
 
@@ -24,6 +24,12 @@ Las instrucciones detalladas para Windows y Android están en [INSTALACION.md](I
 - Agrega el botón **Reproducir limpio**.
 - Intenta cambiar a orientación horizontal al entrar en pantalla completa en Android.
 - Incluye actualización automática mediante Tampermonkey.
+
+## Sitios cubiertos
+
+- LibrePelota.
+- RojaDirectaHD.
+- Reproductores intermedios usados por esos sitios, como `radamel.icu`, `zonatvlive.xyz`, `latamvidzfy.org` y dominios `.sbs` rotativos.
 
 ## Privacidad
 

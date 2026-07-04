@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         LibrePelota limpio
+// @name         Streams limpios
 // @namespace    local.feder.librepelota
-// @version      0.1.2
-// @description  Bloquea popups del reproductor y agrega reproducción limpia en pantalla completa.
+// @version      0.2.0
+// @description  Bloquea popups de reproductores deportivos y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
 // @supportURL   https://github.com/fmalisani1/librepelota-limpio/issues
@@ -14,6 +14,12 @@
 // @match        https://*.latamvidzfy.org/*
 // @match        https://esvidzypro.sbs/*
 // @match        https://*.sbs/*
+// @match        https://rojadirectahd.biz/*
+// @match        https://*.rojadirectahd.biz/*
+// @match        https://radamel.icu/*
+// @match        https://*.radamel.icu/*
+// @match        https://zonatvlive.xyz/*
+// @match        https://*.zonatvlive.xyz/*
 // @run-at       document-start
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -23,9 +29,11 @@
 
   const pageWindow = typeof unsafeWindow === 'object' ? unsafeWindow : window;
   const LIBREPELOTA_HOST = /(^|\.)librepelota\.su$/i;
-  const PLAYER_HOST = /(^|\.)(latamvidzfy\.org|[a-z0-9-]+\.sbs)$/i;
-  const TRUSTED_FRAME_HOST = /(^|\.)(latamvidzfy\.org|librepelota\.su|[a-z0-9-]+\.sbs)$/i;
-  const AD_SCRIPT_HOST = /(^|\.)acscdn\.com$/i;
+  const ROJADIRECTA_HOST = /(^|\.)rojadirectahd\.biz$/i;
+  const PLAYER_HOST = /(^|\.)(latamvidzfy\.org|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz)$/i;
+  const TRUSTED_FRAME_HOST = /(^|\.)(latamvidzfy\.org|librepelota\.su|rojadirectahd\.biz|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz)$/i;
+  const AD_SCRIPT_HOST = /(^|\.)(acscdn\.com|llvpn\.com)$/i;
+  const LOG_PREFIX = '[Streams limpios]';
   const INTERACTION_EVENTS = new Set([
     'auxclick', 'click', 'dblclick', 'mousedown', 'mouseup',
     'pointerdown', 'pointerup', 'touchstart', 'touchend'
@@ -44,12 +52,21 @@
     }
 
     const code = script.textContent || '';
-    return /aclib\.runPop|zoneId\s*:|function\s+qKk\s*\(|cce\s*\(\s*1920\s*\)/.test(code);
+    return /aclib\.runPop|zoneId\s*:|dataset\.zone|data-zone|llvpn\.com\/tag\.min\.js|function\s+qKk\s*\(|cce\s*\(\s*1920\s*\)/.test(code);
+  }
+
+  function isAdScriptNode(node) {
+    if (!(node instanceof Element) || !node.matches('script')) return false;
+
+    if (node.src && AD_SCRIPT_HOST.test(hostOf(node.src))) return true;
+
+    const code = node.textContent || '';
+    return /aclib\.runPop|zoneId\s*:|dataset\.zone|data-zone|llvpn\.com\/tag\.min\.js/.test(code);
   }
 
   function installEarlyGuards() {
     const blockedOpen = function () {
-      console.info('[LibrePelota limpio] Popup bloqueado.');
+      console.info(LOG_PREFIX, 'Popup bloqueado.');
       return null;
     };
 
@@ -89,14 +106,48 @@
         writable: false,
         value: function (type, listener, options) {
           if (INTERACTION_EVENTS.has(String(type).toLowerCase()) && scriptIsAdvertising()) {
-            console.info('[LibrePelota limpio] Capturador publicitario bloqueado:', type);
+            console.info(LOG_PREFIX, 'Capturador publicitario bloqueado:', type);
             return undefined;
           }
           return nativeAddEventListener.call(this, type, listener, options);
         }
       });
     } catch (error) {
-      console.warn('[LibrePelota limpio] No se pudo proteger addEventListener:', error);
+      console.warn(LOG_PREFIX, 'No se pudo proteger addEventListener:', error);
+    }
+
+    try {
+      const proto = pageWindow.Node.prototype;
+      const nativeAppendChild = proto.appendChild;
+      const nativeInsertBefore = proto.insertBefore;
+
+      Object.defineProperty(proto, 'appendChild', {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: function (node) {
+          if (isAdScriptNode(node)) {
+            console.info(LOG_PREFIX, 'Script publicitario bloqueado:', node.src || 'inline');
+            return node;
+          }
+          return nativeAppendChild.call(this, node);
+        }
+      });
+
+      Object.defineProperty(proto, 'insertBefore', {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: function (node, child) {
+          if (isAdScriptNode(node)) {
+            console.info(LOG_PREFIX, 'Script publicitario bloqueado:', node.src || 'inline');
+            return node;
+          }
+          return nativeInsertBefore.call(this, node, child);
+        }
+      });
+    } catch (error) {
+      console.warn(LOG_PREFIX, 'No se pudo proteger inserción de scripts:', error);
     }
   }
 
@@ -109,7 +160,7 @@
   }
 
   function isSupportedPage() {
-    return LIBREPELOTA_HOST.test(location.hostname) || PLAYER_HOST.test(location.hostname);
+    return LIBREPELOTA_HOST.test(location.hostname) || ROJADIRECTA_HOST.test(location.hostname) || PLAYER_HOST.test(location.hostname);
   }
 
   function patchIframe(iframe) {
@@ -139,7 +190,7 @@
   function cleanNode(node) {
     if (!(node instanceof Element)) return;
 
-    if (node.matches('script[src]') && AD_SCRIPT_HOST.test(hostOf(node.src))) {
+    if (isAdScriptNode(node)) {
       node.remove();
       return;
     }
@@ -148,7 +199,7 @@
     node.querySelectorAll('iframe').forEach(patchIframe);
 
     node.querySelectorAll('script[src]').forEach(script => {
-      if (AD_SCRIPT_HOST.test(hostOf(script.src))) script.remove();
+      if (isAdScriptNode(script)) script.remove();
     });
   }
 
@@ -184,7 +235,7 @@
       if (destinationHost && destinationHost !== location.hostname) {
         event.preventDefault();
         event.stopImmediatePropagation();
-        console.info('[LibrePelota limpio] Enlace publicitario bloqueado:', anchor.href);
+        console.info(LOG_PREFIX, 'Enlace publicitario bloqueado:', anchor.href);
       }
     }, true);
   }
@@ -193,7 +244,7 @@
     const video = document.querySelector('video');
     return {
       video,
-      player: document.getElementById('player') || video
+      player: document.getElementById('player') || video || document.querySelector('.player_div, .iframe-container, iframe')
     };
   }
 
@@ -211,12 +262,22 @@
 
   function startPlayer(button, userActivated) {
     const { video, player } = getPlayerTargets();
-    if (!video || !player) {
+    if (!player) {
       if (button) {
         button.textContent = 'Esperando video...';
         setTimeout(() => { button.textContent = 'Reproducir limpio'; }, 1500);
       }
       return false;
+    }
+
+    if (!video) {
+      if (!button || !userActivated) return false;
+
+      button.textContent = 'Abriendo...';
+      const fullscreenResult = requestPlayerFullscreen(player);
+      Promise.resolve(fullscreenResult).catch(() => {});
+      setTimeout(() => { button.textContent = 'Pantalla completa'; }, 500);
+      return true;
     }
 
     video.setAttribute('playsinline', '');

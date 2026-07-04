@@ -1,20 +1,20 @@
-# Instalación de LibrePelota limpio
+# Instalación de Streams limpios
 
 ## Windows con Chrome
 
 1. Instalar [Tampermonkey desde Chrome Web Store](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo).
-2. Abrir [Instalar LibrePelota limpio](https://raw.githubusercontent.com/fmalisani1/librepelota-limpio/main/librepelota-limpio.user.js).
+2. Abrir [Instalar Streams limpios](https://raw.githubusercontent.com/fmalisani1/librepelota-limpio/main/librepelota-limpio.user.js).
 3. Tampermonkey mostrará una pantalla con el código. Presionar **Instalar** una sola vez.
-4. Abrir o recargar LibrePelota. Tampermonkey debe figurar como activado.
+4. Abrir o recargar LibrePelota o RojaDirectaHD. Tampermonkey debe figurar como activado.
 
 ## Android con Firefox
 
 1. Instalar Firefox para Android.
 2. Abrir Firefox y entrar en **Menú → Complementos**.
 3. Buscar e instalar **Tampermonkey**. También se puede abrir su [página oficial para Firefox](https://addons.mozilla.org/firefox/addon/tampermonkey/).
-4. Desde el mismo Firefox, abrir [Instalar LibrePelota limpio](https://raw.githubusercontent.com/fmalisani1/librepelota-limpio/main/librepelota-limpio.user.js).
+4. Desde el mismo Firefox, abrir [Instalar Streams limpios](https://raw.githubusercontent.com/fmalisani1/librepelota-limpio/main/librepelota-limpio.user.js).
 5. Cuando Tampermonkey muestre la pantalla del script, tocar **Instalar**.
-6. Abrir o recargar LibrePelota.
+6. Abrir o recargar LibrePelota o RojaDirectaHD.
 
 ## Si el enlace muestra sólo texto
 
