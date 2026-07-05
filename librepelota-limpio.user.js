@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Streams limpios
 // @namespace    local.feder.librepelota
-// @version      0.2.1
+// @version      0.2.2
 // @description  Bloquea popups de reproductores deportivos y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -304,11 +304,33 @@
     }, true);
   }
 
+  function elementArea(element) {
+    if (!(element instanceof Element)) return 0;
+
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden') return 0;
+    if (rect.width < 120 || rect.height < 80) return 0;
+
+    return rect.width * rect.height;
+  }
+
+  function biggestVisible(selector) {
+    return Array.from(document.querySelectorAll(selector))
+      .map(element => ({ element, area: elementArea(element) }))
+      .filter(item => item.area > 0)
+      .sort((a, b) => b.area - a.area)[0]?.element || null;
+  }
+
   function getPlayerTargets() {
-    const video = document.querySelector('video');
+    const video = biggestVisible('video');
+    const visibleIframe = biggestVisible('iframe');
+    const visiblePlayer = biggestVisible('#player, .player_div, .iframe-container');
+    const playerFromVideo = video?.closest?.('#player, .player_div, .iframe-container');
+
     return {
       video,
-      player: document.getElementById('player') || video || document.querySelector('.player_div, .iframe-container, iframe')
+      player: playerFromVideo || video || visibleIframe || visiblePlayer
     };
   }
 
