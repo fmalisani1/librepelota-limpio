@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Streams limpios
 // @namespace    local.feder.librepelota
-// @version      0.2.3
+// @version      0.2.4
 // @description  Bloquea popups de reproductores deportivos y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -87,7 +87,7 @@
 
   function isClickTrapOverlay(node) {
     if (!(node instanceof Element)) return false;
-    if (node.id === 'lp-clean-play' || node.closest?.('#lp-clean-play')) return false;
+    if (node.id === 'lp-clean-play' || node.id === 'lp-pip' || node.closest?.('#lp-clean-play,#lp-pip')) return false;
     if (!/^(DIV|SPAN|SECTION|ASIDE|INS)$/i.test(node.tagName)) return false;
     if (node.querySelector('iframe,video,canvas,object,embed,button,a,input,select,textarea')) return false;
 
@@ -355,6 +355,53 @@
     button.style.display = fullscreenElement() ? 'none' : '';
   }
 
+  function setVideoAudible(video) {
+    if (!video) return;
+
+    video.muted = false;
+    video.removeAttribute('muted');
+    try { video.volume = 1; } catch (_) {}
+  }
+
+  function updatePipButtonVisibility(button) {
+    if (!button) return;
+
+    const video = biggestVisible('video');
+    const canUsePip = Boolean(
+      fullscreenElement() &&
+      video &&
+      document.pictureInPictureEnabled &&
+      video.requestPictureInPicture
+    );
+    button.style.display = canUsePip ? '' : 'none';
+  }
+
+  function updateFloatingButtons(cleanButton) {
+    updateCleanButtonVisibility(cleanButton);
+    updatePipButtonVisibility(document.getElementById('lp-pip'));
+  }
+
+  function togglePictureInPicture(button) {
+    const video = biggestVisible('video');
+    if (!video || !document.pictureInPictureEnabled || !video.requestPictureInPicture) {
+      updatePipButtonVisibility(button);
+      return;
+    }
+
+    setVideoAudible(video);
+
+    if (document.pictureInPictureElement === video) {
+      document.exitPictureInPicture?.().catch(() => {});
+      return;
+    }
+
+    Promise.resolve(video.play())
+      .catch(() => {})
+      .finally(() => {
+        video.requestPictureInPicture().catch(() => {});
+      });
+  }
+
   function startPlayer(button, userActivated) {
     const { video, player } = getPlayerTargets();
     if (!player) {
@@ -371,17 +418,16 @@
       button.textContent = 'Abriendo...';
       const fullscreenResult = requestPlayerFullscreen(player);
       Promise.resolve(fullscreenResult)
-        .then(() => updateCleanButtonVisibility(button))
+        .then(() => updateFloatingButtons(button))
         .catch(() => {});
+      updateFloatingButtons(button);
       setTimeout(() => { button.textContent = 'Pantalla completa'; }, 500);
       return true;
     }
 
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
-    video.muted = false;
-    video.removeAttribute('muted');
-    try { video.volume = 1; } catch (_) {}
+    setVideoAudible(video);
 
     if (button) button.textContent = 'Abriendo...';
 
@@ -389,8 +435,9 @@
 
     const fullscreenResult = requestPlayerFullscreen(player);
     Promise.resolve(fullscreenResult)
-      .then(() => updateCleanButtonVisibility(button))
+      .then(() => updateFloatingButtons(button))
       .catch(() => {});
+    updateFloatingButtons(button);
 
     playResult
       .catch(() => {})
@@ -437,8 +484,42 @@
 
       document.body.appendChild(button);
 
+      const pipButton = document.createElement('button');
+      pipButton.id = 'lp-pip';
+      pipButton.type = 'button';
+      pipButton.textContent = '◱';
+      pipButton.title = 'Picture in Picture';
+      pipButton.setAttribute('aria-label', 'Abrir en Picture in Picture');
+      pipButton.style.cssText = [
+        'position:fixed',
+        'left:12px',
+        'top:12px',
+        'z-index:2147483647',
+        'width:34px',
+        'height:34px',
+        'padding:0',
+        'border:1px solid rgba(255,255,255,.45)',
+        'border-radius:999px',
+        'background:rgba(255,255,255,.28)',
+        'color:#fff',
+        'font:700 18px/1 system-ui,sans-serif',
+        'box-shadow:0 2px 10px rgba(0,0,0,.25)',
+        'cursor:pointer',
+        'touch-action:manipulation',
+        'backdrop-filter:blur(2px)',
+        'display:none'
+      ].join(';');
+
+      pipButton.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        togglePictureInPicture(pipButton);
+      }, true);
+
+      document.body.appendChild(pipButton);
+
       const onFullscreenChange = () => {
-        updateCleanButtonVisibility(button);
+        updateFloatingButtons(button);
         if (!fullscreenElement() || !screen.orientation?.lock) return;
         screen.orientation.lock('landscape').catch(() => {});
       };
