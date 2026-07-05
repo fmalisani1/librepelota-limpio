@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Streams limpios
 // @namespace    local.feder.librepelota
-// @version      0.2.5
+// @version      0.2.6
 // @description  Bloquea popups de reproductores deportivos y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -43,6 +43,7 @@
   const LIBREPELOTA_HOST = /(^|\.)librepelota\.su$/i;
   const ROJADIRECTA_HOST = /(^|\.)rojadirectahd\.biz$/i;
   const PLAYER_HOST = /(^|\.)(latamvidzfy\.org|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz|tvcstreams\.pl|tvcstreams\.shop|tutvlive\.xyz|la16hd\.com|la20hd\.com|golazohd\.com)$/i;
+  const WRAPPER_ONLY_HOST = /(^|\.)(radamel\.icu|tvcstreams\.pl|tvcstreams\.shop)$/i;
   const TRUSTED_FRAME_HOST = /(^|\.)(latamvidzfy\.org|librepelota\.su|rojadirectahd\.biz|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz|tvcstreams\.pl|tvcstreams\.shop|tutvlive\.xyz|la16hd\.com|la20hd\.com|golazohd\.com)$/i;
   const AD_SCRIPT_HOST = /(^|\.)(acscdn\.com|llvpn\.com|bvtpk\.com|paupsoborofoow\.net|madurird\.com|jnbhi\.com|dtscout\.com|dtscdn\.com|mrktmtrcs\.net|tynt\.com|waust\.at)$/i;
   const AD_STACK_PATTERN = /(acscdn\.com|llvpn\.com|bvtpk\.com|paupsoborofoow\.net|madurird\.com|jnbhi\.com|dtscout\.com|dtscdn\.com|mrktmtrcs\.net|tynt\.com|waust\.at)/i;
@@ -354,7 +355,7 @@
   function updateCleanButtonVisibility(button) {
     if (!button) return;
     const { childFrame, video } = getPlayerTargets();
-    button.style.display = fullscreenElement() || (!video && childFrame) ? 'none' : '';
+    button.style.display = fullscreenElement() || (!video && childFrame && WRAPPER_ONLY_HOST.test(location.hostname)) ? 'none' : '';
   }
 
   function setVideoAudible(video) {
@@ -414,7 +415,7 @@
       return false;
     }
 
-    if (!video && childFrame) {
+    if (!video && childFrame && WRAPPER_ONLY_HOST.test(location.hostname)) {
       updateFloatingButtons(button);
       return false;
     }
