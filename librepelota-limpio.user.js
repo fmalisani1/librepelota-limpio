@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Streams limpios
 // @namespace    local.feder.librepelota
-// @version      0.2.4
+// @version      0.2.5
 // @description  Bloquea popups de reproductores deportivos y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -329,6 +329,7 @@
     const playerFromVideo = video?.closest?.('#player, .player_div, .iframe-container');
 
     return {
+      childFrame: visibleIframe,
       video,
       player: playerFromVideo || video || visibleIframe || visiblePlayer
     };
@@ -352,7 +353,8 @@
 
   function updateCleanButtonVisibility(button) {
     if (!button) return;
-    button.style.display = fullscreenElement() ? 'none' : '';
+    const { childFrame, video } = getPlayerTargets();
+    button.style.display = fullscreenElement() || (!video && childFrame) ? 'none' : '';
   }
 
   function setVideoAudible(video) {
@@ -403,12 +405,17 @@
   }
 
   function startPlayer(button, userActivated) {
-    const { video, player } = getPlayerTargets();
+    const { childFrame, video, player } = getPlayerTargets();
     if (!player) {
       if (button) {
         button.textContent = 'Esperando video...';
         setTimeout(() => { button.textContent = 'Reproducir limpio'; }, 1500);
       }
+      return false;
+    }
+
+    if (!video && childFrame) {
+      updateFloatingButtons(button);
       return false;
     }
 
