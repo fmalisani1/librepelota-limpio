@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Streams limpios
 // @namespace    local.feder.librepelota
-// @version      0.2.2
+// @version      0.2.3
 // @description  Bloquea popups de reproductores deportivos y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -346,6 +346,15 @@
     return undefined;
   }
 
+  function fullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function updateCleanButtonVisibility(button) {
+    if (!button) return;
+    button.style.display = fullscreenElement() ? 'none' : '';
+  }
+
   function startPlayer(button, userActivated) {
     const { video, player } = getPlayerTargets();
     if (!player) {
@@ -361,25 +370,27 @@
 
       button.textContent = 'Abriendo...';
       const fullscreenResult = requestPlayerFullscreen(player);
-      Promise.resolve(fullscreenResult).catch(() => {});
+      Promise.resolve(fullscreenResult)
+        .then(() => updateCleanButtonVisibility(button))
+        .catch(() => {});
       setTimeout(() => { button.textContent = 'Pantalla completa'; }, 500);
       return true;
     }
 
     video.setAttribute('playsinline', '');
     video.setAttribute('webkit-playsinline', '');
+    video.muted = false;
+    video.removeAttribute('muted');
+    try { video.volume = 1; } catch (_) {}
 
     if (button) button.textContent = 'Abriendo...';
 
-    const playResult = Promise.resolve(video.play()).catch(error => {
-      if (userActivated) throw error;
-      video.muted = true;
-      video.setAttribute('muted', '');
-      return video.play();
-    });
+    const playResult = Promise.resolve(video.play());
 
     const fullscreenResult = requestPlayerFullscreen(player);
-    Promise.resolve(fullscreenResult).catch(() => {});
+    Promise.resolve(fullscreenResult)
+      .then(() => updateCleanButtonVisibility(button))
+      .catch(() => {});
 
     playResult
       .catch(() => {})
@@ -426,10 +437,14 @@
 
       document.body.appendChild(button);
 
-      document.addEventListener('fullscreenchange', () => {
-        if (!document.fullscreenElement || !screen.orientation?.lock) return;
+      const onFullscreenChange = () => {
+        updateCleanButtonVisibility(button);
+        if (!fullscreenElement() || !screen.orientation?.lock) return;
         screen.orientation.lock('landscape').catch(() => {});
-      });
+      };
+
+      document.addEventListener('fullscreenchange', onFullscreenChange);
+      document.addEventListener('webkitfullscreenchange', onFullscreenChange);
     };
 
     const tryAutostart = () => {
