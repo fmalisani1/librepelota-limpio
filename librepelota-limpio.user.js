@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Streams limpios
 // @namespace    local.feder.librepelota
-// @version      0.2.0
+// @version      0.2.1
 // @description  Bloquea popups de reproductores deportivos y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -20,6 +20,18 @@
 // @match        https://*.radamel.icu/*
 // @match        https://zonatvlive.xyz/*
 // @match        https://*.zonatvlive.xyz/*
+// @match        https://tvcstreams.pl/*
+// @match        https://*.tvcstreams.pl/*
+// @match        https://tvcstreams.shop/*
+// @match        https://*.tvcstreams.shop/*
+// @match        https://tutvlive.xyz/*
+// @match        https://*.tutvlive.xyz/*
+// @match        https://la16hd.com/*
+// @match        https://*.la16hd.com/*
+// @match        https://la20hd.com/*
+// @match        https://*.la20hd.com/*
+// @match        https://golazohd.com/*
+// @match        https://*.golazohd.com/*
 // @run-at       document-start
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -30,9 +42,10 @@
   const pageWindow = typeof unsafeWindow === 'object' ? unsafeWindow : window;
   const LIBREPELOTA_HOST = /(^|\.)librepelota\.su$/i;
   const ROJADIRECTA_HOST = /(^|\.)rojadirectahd\.biz$/i;
-  const PLAYER_HOST = /(^|\.)(latamvidzfy\.org|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz)$/i;
-  const TRUSTED_FRAME_HOST = /(^|\.)(latamvidzfy\.org|librepelota\.su|rojadirectahd\.biz|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz)$/i;
-  const AD_SCRIPT_HOST = /(^|\.)(acscdn\.com|llvpn\.com)$/i;
+  const PLAYER_HOST = /(^|\.)(latamvidzfy\.org|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz|tvcstreams\.pl|tvcstreams\.shop|tutvlive\.xyz|la16hd\.com|la20hd\.com|golazohd\.com)$/i;
+  const TRUSTED_FRAME_HOST = /(^|\.)(latamvidzfy\.org|librepelota\.su|rojadirectahd\.biz|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz|tvcstreams\.pl|tvcstreams\.shop|tutvlive\.xyz|la16hd\.com|la20hd\.com|golazohd\.com)$/i;
+  const AD_SCRIPT_HOST = /(^|\.)(acscdn\.com|llvpn\.com|bvtpk\.com|paupsoborofoow\.net|madurird\.com|jnbhi\.com|dtscout\.com|dtscdn\.com|mrktmtrcs\.net|tynt\.com|waust\.at)$/i;
+  const AD_STACK_PATTERN = /(acscdn\.com|llvpn\.com|bvtpk\.com|paupsoborofoow\.net|madurird\.com|jnbhi\.com|dtscout\.com|dtscdn\.com|mrktmtrcs\.net|tynt\.com|waust\.at)/i;
   const LOG_PREFIX = '[Streams limpios]';
   const INTERACTION_EVENTS = new Set([
     'auxclick', 'click', 'dblclick', 'mousedown', 'mouseup',
@@ -52,7 +65,15 @@
     }
 
     const code = script.textContent || '';
-    return /aclib\.runPop|zoneId\s*:|dataset\.zone|data-zone|llvpn\.com\/tag\.min\.js|function\s+qKk\s*\(|cce\s*\(\s*1920\s*\)/.test(code);
+    return /aclib\.runPop|zoneId\s*:|dataset\.zone|data-zone|tag\.min\.js|function\s+qKk\s*\(|cce\s*\(\s*1920\s*\)/.test(code);
+  }
+
+  function stackIsAdvertising() {
+    try {
+      return AD_STACK_PATTERN.test(new Error().stack || '');
+    } catch (_) {
+      return false;
+    }
   }
 
   function isAdScriptNode(node) {
@@ -61,7 +82,44 @@
     if (node.src && AD_SCRIPT_HOST.test(hostOf(node.src))) return true;
 
     const code = node.textContent || '';
-    return /aclib\.runPop|zoneId\s*:|dataset\.zone|data-zone|llvpn\.com\/tag\.min\.js/.test(code);
+    return /aclib\.runPop|zoneId\s*:|dataset\.zone|data-zone|tag\.min\.js/.test(code);
+  }
+
+  function isClickTrapOverlay(node) {
+    if (!(node instanceof Element)) return false;
+    if (node.id === 'lp-clean-play' || node.closest?.('#lp-clean-play')) return false;
+    if (!/^(DIV|SPAN|SECTION|ASIDE|INS)$/i.test(node.tagName)) return false;
+    if (node.querySelector('iframe,video,canvas,object,embed,button,a,input,select,textarea')) return false;
+
+    const text = (node.textContent || '').trim();
+    if (text) return false;
+
+    const style = getComputedStyle(node);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false;
+
+    const rect = node.getBoundingClientRect();
+    const area = rect.width * rect.height;
+    const viewportArea = Math.max(1, innerWidth * innerHeight);
+    const zIndex = Number.parseInt(style.zIndex, 10) || 0;
+    const highZ = zIndex >= 999999 || style.zIndex === '2147483647';
+    const large = area > viewportArea * 0.25 || (rect.width > 250 && rect.height > 120);
+    const positioned = style.position === 'absolute' || style.position === 'fixed' || style.position === 'sticky';
+
+    return positioned && highZ && large;
+  }
+
+  function neutralizeClickTrap(node) {
+    if (!isClickTrapOverlay(node)) return false;
+
+    try {
+      node.style.setProperty('pointer-events', 'none', 'important');
+      node.style.setProperty('display', 'none', 'important');
+      node.remove();
+      console.info(LOG_PREFIX, 'Capa publicitaria transparente bloqueada.');
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   function installEarlyGuards() {
@@ -105,7 +163,7 @@
         enumerable: false,
         writable: false,
         value: function (type, listener, options) {
-          if (INTERACTION_EVENTS.has(String(type).toLowerCase()) && scriptIsAdvertising()) {
+          if (INTERACTION_EVENTS.has(String(type).toLowerCase()) && (scriptIsAdvertising() || stackIsAdvertising())) {
             console.info(LOG_PREFIX, 'Capturador publicitario bloqueado:', type);
             return undefined;
           }
@@ -130,6 +188,7 @@
             console.info(LOG_PREFIX, 'Script publicitario bloqueado:', node.src || 'inline');
             return node;
           }
+          if (neutralizeClickTrap(node)) return node;
           return nativeAppendChild.call(this, node);
         }
       });
@@ -143,6 +202,7 @@
             console.info(LOG_PREFIX, 'Script publicitario bloqueado:', node.src || 'inline');
             return node;
           }
+          if (neutralizeClickTrap(node)) return node;
           return nativeInsertBefore.call(this, node, child);
         }
       });
@@ -165,12 +225,12 @@
 
   function patchIframe(iframe) {
     const host = hostOf(iframe.src);
-    if (!TRUSTED_FRAME_HOST.test(host)) {
+    if (AD_SCRIPT_HOST.test(host)) {
       iframe.remove();
       return;
     }
 
-    if (PLAYER_HOST.test(host)) {
+    if (PLAYER_HOST.test(host) || TRUSTED_FRAME_HOST.test(host)) {
       iframe.setAttribute('allowfullscreen', '');
       iframe.setAttribute('webkitallowfullscreen', '');
 
@@ -195,8 +255,12 @@
       return;
     }
 
+    if (neutralizeClickTrap(node)) return;
+
     if (node.matches('iframe')) patchIframe(node);
     node.querySelectorAll('iframe').forEach(patchIframe);
+
+    node.querySelectorAll('div,span,section,aside,ins').forEach(neutralizeClickTrap);
 
     node.querySelectorAll('script[src]').forEach(script => {
       if (isAdScriptNode(script)) script.remove();

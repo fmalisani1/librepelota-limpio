@@ -29,7 +29,7 @@ Las instrucciones detalladas para Windows y Android están en [INSTALACION.md](I
 
 - LibrePelota.
 - RojaDirectaHD.
-- Reproductores intermedios usados por esos sitios, como `radamel.icu`, `zonatvlive.xyz`, `latamvidzfy.org` y dominios `.sbs` rotativos.
+- Reproductores intermedios usados por esos sitios, como `radamel.icu`, `zonatvlive.xyz`, `tvcstreams.pl`, `tvcstreams.shop`, `tutvlive.xyz`, `la16hd.com`, `la20hd.com`, `latamvidzfy.org` y dominios `.sbs` rotativos.
 
 ## Privacidad
 
