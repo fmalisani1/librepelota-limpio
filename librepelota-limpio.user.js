@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Streams limpios
 // @namespace    local.feder.librepelota
-// @version      0.2.8
+// @version      0.2.9
 // @description  Bloquea popups de reproductores deportivos y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -32,6 +32,10 @@
 // @match        https://*.la20hd.com/*
 // @match        https://golazohd.com/*
 // @match        https://*.golazohd.com/*
+// @match        https://streamed.pk/*
+// @match        https://*.streamed.pk/*
+// @match        https://embed.st/*
+// @match        https://*.embed.st/*
 // @run-at       document-start
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -42,11 +46,13 @@
   const pageWindow = typeof unsafeWindow === 'object' ? unsafeWindow : window;
   const LIBREPELOTA_HOST = /(^|\.)librepelota\.su$/i;
   const ROJADIRECTA_HOST = /(^|\.)rojadirectahd\.biz$/i;
-  const PLAYER_HOST = /(^|\.)(latamvidzfy\.org|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz|tvcstreams\.pl|tvcstreams\.shop|tutvlive\.xyz|la16hd\.com|la20hd\.com|golazohd\.com)$/i;
+  const STREAMED_HOST = /(^|\.)streamed\.pk$/i;
+  const PLAYER_HOST = /(^|\.)(latamvidzfy\.org|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz|tvcstreams\.pl|tvcstreams\.shop|tutvlive\.xyz|la16hd\.com|la20hd\.com|golazohd\.com|embed\.st)$/i;
   const WRAPPER_ONLY_HOST = /(^|\.)(radamel\.icu|tvcstreams\.pl|tvcstreams\.shop)$/i;
-  const TRUSTED_FRAME_HOST = /(^|\.)(latamvidzfy\.org|librepelota\.su|rojadirectahd\.biz|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz|tvcstreams\.pl|tvcstreams\.shop|tutvlive\.xyz|la16hd\.com|la20hd\.com|golazohd\.com)$/i;
-  const AD_SCRIPT_HOST = /(^|\.)(acscdn\.com|llvpn\.com|bvtpk\.com|paupsoborofoow\.net|madurird\.com|jnbhi\.com|dtscout\.com|dtscdn\.com|mrktmtrcs\.net|tynt\.com|waust\.at)$/i;
-  const AD_STACK_PATTERN = /(acscdn\.com|llvpn\.com|bvtpk\.com|paupsoborofoow\.net|madurird\.com|jnbhi\.com|dtscout\.com|dtscdn\.com|mrktmtrcs\.net|tynt\.com|waust\.at)/i;
+  const TRUSTED_FRAME_HOST = /(^|\.)(latamvidzfy\.org|librepelota\.su|rojadirectahd\.biz|streamed\.pk|embed\.st|[a-z0-9-]+\.sbs|radamel\.icu|zonatvlive\.xyz|tvcstreams\.pl|tvcstreams\.shop|tutvlive\.xyz|la16hd\.com|la20hd\.com|golazohd\.com)$/i;
+  const AD_SCRIPT_HOST = /(^|\.)(acscdn\.com|llvpn\.com|bvtpk\.com|paupsoborofoow\.net|madurird\.com|jnbhi\.com|dtscout\.com|dtscdn\.com|mrktmtrcs\.net|tynt\.com|waust\.at|92mim\.com|vr-gc\.com|484r\.com|tzegilo\.com)$/i;
+  const AD_STACK_PATTERN = /(acscdn\.com|llvpn\.com|bvtpk\.com|paupsoborofoow\.net|madurird\.com|jnbhi\.com|dtscout\.com|dtscdn\.com|mrktmtrcs\.net|tynt\.com|waust\.at|92mim\.com|vr-gc\.com|484r\.com|tzegilo\.com)/i;
+  const AD_NAV_HOST = /(^|\.)(caposino1\.com)$/i;
   const LOG_PREFIX = '[Streams limpios]';
   const INTERACTION_EVENTS = new Set([
     'auxclick', 'click', 'dblclick', 'mousedown', 'mouseup',
@@ -221,11 +227,12 @@
   }
 
   function isSupportedPage() {
-    return LIBREPELOTA_HOST.test(location.hostname) || ROJADIRECTA_HOST.test(location.hostname) || PLAYER_HOST.test(location.hostname);
+    return LIBREPELOTA_HOST.test(location.hostname) || ROJADIRECTA_HOST.test(location.hostname) || STREAMED_HOST.test(location.hostname) || PLAYER_HOST.test(location.hostname);
   }
 
   function isTopLevelStreamPage() {
-    return ROJADIRECTA_HOST.test(location.hostname) && /^\/play\//.test(location.pathname);
+    return (ROJADIRECTA_HOST.test(location.hostname) && /^\/play\//.test(location.pathname))
+      || (STREAMED_HOST.test(location.hostname) && /^\/watch\//.test(location.pathname));
   }
 
   function patchIframe(iframe) {
@@ -305,6 +312,20 @@
         event.preventDefault();
         event.stopImmediatePropagation();
         console.info(LOG_PREFIX, 'Enlace publicitario bloqueado:', anchor.href);
+      }
+    }, true);
+  }
+
+  function installKnownAdNavigationGuard() {
+    document.addEventListener('click', event => {
+      const target = event.target instanceof Element ? event.target : null;
+      const anchor = target?.closest('a[href]');
+      if (!anchor) return;
+
+      if (AD_NAV_HOST.test(hostOf(anchor.href))) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        console.info(LOG_PREFIX, 'Navegación publicitaria bloqueada:', anchor.href);
       }
     }, true);
   }
@@ -555,6 +576,8 @@
     };
 
     const installFirstGestureStart = () => {
+      if (STREAMED_HOST.test(location.hostname)) return;
+
       const onFirstGesture = event => {
         if (!startPlayer(document.getElementById('lp-clean-play'), true)) return;
 
@@ -588,5 +611,6 @@
   installEarlyGuards();
   installDomCleaner();
   installExternalLinkGuard();
+  installKnownAdNavigationGuard();
   installCleanPlayerButton();
 })();
