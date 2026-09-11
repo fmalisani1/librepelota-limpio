@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Streams limpios
 // @namespace    local.feder.librepelota
-// @version      0.2.9
+// @version      0.2.10
 // @description  Bloquea popups de reproductores deportivos y agrega reproducción limpia en pantalla completa.
 // @author       local
 // @homepageURL  https://github.com/fmalisani1/librepelota-limpio
@@ -607,6 +607,12 @@
   }
 
   if (!isSupportedPage()) return;
+
+  if (STREAMED_HOST.test(location.hostname)) {
+    try { pageWindow.open = () => null; } catch (_) {}
+    installKnownAdNavigationGuard();
+    return;
+  }
 
   installEarlyGuards();
   installDomCleaner();
